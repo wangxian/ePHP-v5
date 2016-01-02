@@ -1,0 +1,9 @@
+#.*
+.DS_Store
+
+.nodemonignore
+.npmignore
+.project
+.settings/
+.buildpath
+nbproject/
