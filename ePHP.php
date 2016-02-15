@@ -21,7 +21,8 @@ function error_handler($errno, $errstr, $errfile, $errline)
 {
 	if (!C('show_errors'))
 	{
-		return true;}
+		return true;
+	}
 	throw new ephpException($errstr, $errno, array('errfile' => $errfile, 'errline' => $errline));
 }
 
@@ -45,7 +46,8 @@ function run_info($output = true)
  */
 function dumpdie($vars)
 {
-	dump($vars);exit;}
+	dump($vars);exit;
+}
 
 /**
  * 格式化print_r输出，并停止
@@ -55,7 +57,8 @@ function dumpdie($vars)
  */
 function printdie($vars)
 {
-	dump($vars, null, 0);exit;}
+	dump($vars, null, 0);exit;
+}
 
 /**
  * 格式化输出
@@ -306,6 +309,14 @@ function wlog($name, $value)
 	if (!is_writeable($logdir))
 	{
 		exit('ERROR: Log directory {' . $logdir . '} is not writeable, check the directory permissions!');
+	}
+
+	// 修复：跑在toolbox docker-machine下，文件权限问题，
+	// 文件创建后，以后不能再次写入，不然报错
+	$filename = $logdir . $name . date('Y-m-d') . '.log';
+	if (file_exists($filename) && !is_writeable($filename))
+	{
+		exit('ERROR: {' . $filename . '} is not writeable, check the file permissions!');
 	}
 
 	error_log('[' . date('H:i:s') . ']' . $value . "\n", 3, $logdir . $name . date('Y-m-d') . '.log');
