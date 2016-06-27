@@ -24,13 +24,18 @@ class model
     protected $join       = '';
     protected $data       = array();
 
-    protected $expire = -1; #缓存时间
+    // 缓存时间
+    protected $expire = -1;
     public $sql       = '';
 
-    protected $query_sql   = ''; #用query($sql)方法，直接用SQL进行查询。
-    public $db_config_name = 'default'; #默认的使用的数据库
+    // 用query($sql)方法，直接用SQL进行查询。
+    protected $query_sql   = '';
 
-    protected $db = NULL; #db类的实例化。非db handle
+    // 默认的使用的数据库
+    public $db_config_name = 'default';
+
+    // db类的实例化。非db handle
+    protected $db = NULL;
     static protected $_db_handle;
 
     /**
@@ -94,7 +99,7 @@ class model
     {
         if ($this->table_name == '')
         {
-            //如果是在实例化后使用，则使用当前模型名称
+            // 如果是在实例化后使用，则使用当前模型名称
             $current_class = get_class($this);
             if ($current_class != 'model')
             {
@@ -152,7 +157,8 @@ class model
      */
     public function from($table_name)
     {
-        return $this->table($table_name);}
+        return $this->table($table_name);
+    }
 
     /**
      * 指定使用db.config.php哪个数据库配制帐号，例如default、primary
@@ -193,7 +199,8 @@ class model
      */
     public function field($field)
     {
-        return $this->select($field);}
+        return $this->select($field);
+    }
 
     /**
      * SQL中limit，使用方法：model::limit('0,10') 或 model::limit(0,10)
@@ -217,11 +224,11 @@ class model
 
     /**
      * 写入数据库的内容(for insert|update)
-     * @param array $data 要写入数据库的内容。
-     * @param array $noquote data中不加引号的字段列表。如array('updated','create_time');必须是数组
+     * @param string||array $data 要写入数据库的内容。
+     * @param array $replacement 当data是字符串时，按照位置替换问号“？”
      * @return object $this
      */
-    public function set($data, $noquote = array())
+    public function set($data, $replacement = array())
     {
         if (is_array($data))
         {
@@ -229,17 +236,28 @@ class model
             {
                 if (empty($noquote) || !in_array($k, $noquote))
                 {
-                    $v        = $this->escape_string($v);
-                    $data[$k] = "'{$v}'";
+                    $data[$k] = "'". $this->escape_string($v) ."'";
                 }
             }
+
+            $this->data += $data;
+        } else if( is_string($data) && !empty($replacement) ) {
+        	// 支持model->set("cid=? and name=?", [12, "name"])
+        	$i = 0;
+        	$data = preg_replace_callback(["/(\?)/"], function() use (&$i, &$replacement) {
+        		$v = $replacement[$i++];
+        		return is_numeric($v) ? $v : "'" . $this->escape_string($v) . "'";
+        	}, $data);
+
+        	$this->data = $data;
         }
         else
         {
-            throw new ephpException('参数$data,$noquote都必须是数组。');
+            throw new ephpException('model::set参数错误, $data接受string||array');
         }
 
-        $this->data = $data;
+
+        // dump($this->data);
         return $this;
     }
 
@@ -251,33 +269,32 @@ class model
      */
     public function data($data, $noquote = array())
     {
-        return $this->set($data, $noquote);}
+        return $this->set($data, $noquote);
+    }
 
     /**
      * SQL中的where条件
      * @param  string||array $where 可以是一个字符串或数组。
-     * @param  array $noquote 指定那些字段不加引号引号。如array('updated','create_time');
+     * @param  array $replacement 当where是字符串时，按照位置替换问号“？”
      * @return object $this
      */
-    public function where($where, $noquote = array())
+    public function where($where, $replacement = array())
     {
         if (is_array($where))
         {
             $tmp = array();
             foreach ($where as $k => $v)
             {
-                if (empty($noquote) && !in_array($k, $noquote))
-                {
-                    $v     = $this->escape_string($v);
-                    $tmp[] = $k . "='" . $v . "'";
-                }
-                else
-                {
-                    $tmp[] = $k . "=" . $v;
-                }
-                //不加引号
+                $tmp[] = is_numeric($v) ? $k . "=" . $v : $k . "='" . $v ."'";
             }
             $where = implode(' AND ', $tmp);
+        } else if( is_string($where) && !empty($replacement) ) {
+        	// 支持model->where("id>? and name=?", [12, "name"])
+        	$i = 0;
+        	$where = preg_replace_callback(["/(\?)/"], function() use (&$i, &$replacement) {
+        		$v = $replacement[$i++];
+        		return is_numeric($v) ? $v : "'" . $this->escape_string($v) . "'";
+        	}, $where);
         }
 
         if (empty($this->where))
@@ -355,7 +372,8 @@ class model
      */
     public function affected_rows()
     {
-        return $this->db ? $this->db->affected_rows() : 0;}
+        return $this->db ? $this->db->affected_rows() : 0;
+    }
 
     /**
      * last insert_id
@@ -363,7 +381,8 @@ class model
      */
     public function insert_id()
     {
-        return $this->db ? $this->db->insert_id() : 0;}
+        return $this->db ? $this->db->insert_id() : 0;
+    }
 
     /**
      * 最后执行的sql
@@ -376,12 +395,23 @@ class model
 
     /**
      * 调用数据库db::query方法，如果是SELECT\show可以后后续操作。
-     * @param  string $sql 要查询的SQL或执行commit的SQL等。
+     * @param string $sql 要查询的SQL或执行commit的SQL等。
+     * @param array $replacement 按照位置替换问号“？”
      * @return mixed
      */
-    public function query($sql)
+    public function query($sql, $replacement=array())
     {
-        #鉴定是执行查询还是commit提交操作。如果是select、show，可以有后续操作。
+    	if(!empty($replacement))
+    	{
+    		// 支持model->query("cid=? and name=?", [12, "name"])
+			$i = 0;
+			$sql = preg_replace_callback(["/(\?)/"], function() use (&$i, &$replacement) {
+				$v = $replacement[$i++];
+        		return is_numeric($v) ? $v : "'" . $this->escape_string($v) . "'";
+			}, $sql);
+    	}
+
+        // 鉴定是执行查询还是commit提交操作。如果是select、show，可以有后续操作。
         $_key = strtolower(substr($sql, 0, 4));
         if ($_key == 'sele' || $_key == 'show')
         {
@@ -395,7 +425,7 @@ class model
 
     }
 
-    #------------------------------------------------------------------------------ 查询操作
+    // ------------------------------------------------------------------------------ 查询操作
 
     /**
      * 以array的方式,返回查询到的一条数据
@@ -544,7 +574,7 @@ class model
         return $this->db->fetch_object($this->sql)->count;
     }
 
-#------------------------------------------------------------------------------insert update delete操作
+// ------------------------------------------------------------------------------insert update delete操作
 
     /**
      * 删除一行或多行，如果希望删除所有行,使用delete(true)
@@ -584,12 +614,20 @@ class model
 
         $_set_string = ' SET ';
         $tmp         = array();
-        foreach ($this->data as $k => $v)
+
+        if( is_array($this->data) )
         {
-            $tmp[] = $k . '=' . $v;
+	        foreach ($this->data as $k => $v)
+	        {
+	            $tmp[] = $k . '=' . $v;
+	        }
+        	$_set_string .= implode(',', $tmp);
+        }
+        else if (is_string($this->data))
+        {
+        	$_set_string .= $this->data;
         }
 
-        $_set_string .= implode(',', $tmp);
 
         if ($this->where)
         {
@@ -600,7 +638,7 @@ class model
             throw new ephpException('警告：您似乎漏掉了where条件，确认不使用where条件，请使用update(true)');
         }
 
-        //清理使用过的变量
+        // 清理使用过的变量
         $this->data  = array();
         $this->where = '';
 
@@ -652,6 +690,11 @@ class model
      */
     protected function _insert($type, $update_string = '')
     {
+    	if(is_string($this->data))
+    	{
+    		throw new ephpException('错误：执行model::insert()时model::set/data()参数必须是array类型');
+    		return false;
+    	}
         $_table_name = $this->_get_table_name();
         $_fields     = implode(',', array_keys($this->data));
         $_values     = implode(',', array_values($this->data));
@@ -682,7 +725,7 @@ class model
         return $this->db->insert_id();
     }
 
-    #------------------------------------------------------------------------------事务
+    // ------------------------------------------------------------------------------事务
 
     /**
      * 开始事务

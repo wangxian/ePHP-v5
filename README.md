@@ -1,4 +1,15 @@
 # ePHP - Simple PHP framework - v5
+## 更新
+2016-06-27<br />
+更新：model方法where()、set()/data()、query() 支持位置替换参数，
+参数被替换前进行escape_string。
+
+```php
+$m->table("t_test")->where("id=? and name=?", [12, "tom"])->findAll()
+$m->table("t_test")->set("name=?", ["wx"])->where("id>?", [5])->update()
+$m->query("select * from t_test where name=?", ["wx"])->findAll()
+```
+
 ## 介绍
 现在PHP开发框架非常多，一个开发框架优秀与否与它有多少特性没有太大的关系，其实这些扩展都是可以自己添加，核心的东西才最重要。 鱼和熊掌不可兼得，你得到的越多，失去的就越多。所以建议大家集众家之所，完善自我！（新手一定要看、多问.）
 
