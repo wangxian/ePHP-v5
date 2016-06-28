@@ -290,6 +290,9 @@ function QM($model_name, $db_config_name = 'default')
 	return $obj;
 }
 
+// 允许自定义写日志方法
+if( function_exists("wlog") )
+{
 /**
  * write日志
  *
@@ -320,6 +323,7 @@ function wlog($name, $value)
 	}
 
 	error_log('[' . date('H:i:s') . ']' . $value . "\n", 3, $logdir . $name . date('Y-m-d') . '.log');
+}
 }
 
 /**
