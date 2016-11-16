@@ -29,7 +29,7 @@ class model
     public $sql       = '';
 
     // 用query($sql)方法，直接用SQL进行查询。
-    protected $query_sql   = '';
+    protected $query_sql = '';
 
     // 默认的使用的数据库
     public $db_config_name = 'default';
@@ -236,26 +236,28 @@ class model
             {
                 if (empty($noquote) || !in_array($k, $noquote))
                 {
-                    $data[$k] = "'". $this->escape_string($v) ."'";
+                    $data[$k] = "'" . $this->escape_string($v) . "'";
                 }
             }
 
             $this->data += $data;
-        } else if( is_string($data) && !empty($replacement) ) {
-        	// 支持model->set("cid=? and name=?", [12, "name"])
-        	$i = 0;
-        	$data = preg_replace_callback(["/(\?)/"], function() use (&$i, &$replacement) {
-        		$v = $replacement[$i++];
-        		return is_numeric($v) ? $v : "'" . $this->escape_string($v) . "'";
-        	}, $data);
+        }
+        else if (is_string($data) && !empty($replacement))
+        {
+            // 支持model->set("cid=? and name=?", [12, "name"])
+            $i    = 0;
+            $data = preg_replace_callback(["/(\?)/"], function () use (&$i, &$replacement)
+            {
+                $v = $replacement[$i++];
+                return !is_string($v) ? $v : "'" . $this->escape_string($v) . "'";
+            }, $data);
 
-        	$this->data = $data;
+            $this->data = $data;
         }
         else
         {
             throw new ephpException('model::set参数错误, $data接受string||array');
         }
-
 
         // dump($this->data);
         return $this;
@@ -285,16 +287,19 @@ class model
             $tmp = array();
             foreach ($where as $k => $v)
             {
-                $tmp[] = is_numeric($v) ? $k . "=" . $v : $k . "='" . $v ."'";
+                $tmp[] = !is_string($v) ? $k . "=" . $v : $k . "='" . $v . "'";
             }
             $where = implode(' AND ', $tmp);
-        } else if( is_string($where) && !empty($replacement) ) {
-        	// 支持model->where("id>? and name=?", [12, "name"])
-        	$i = 0;
-        	$where = preg_replace_callback(["/(\?)/"], function() use (&$i, &$replacement) {
-        		$v = $replacement[$i++];
-        		return is_numeric($v) ? $v : "'" . $this->escape_string($v) . "'";
-        	}, $where);
+        }
+        else if (is_string($where) && !empty($replacement))
+        {
+            // 支持model->where("id>? and name=?", [12, "name"])
+            $i     = 0;
+            $where = preg_replace_callback(["/(\?)/"], function () use (&$i, &$replacement)
+            {
+                $v = $replacement[$i++];
+                return !is_string($v) ? $v : "'" . $this->escape_string($v) . "'";
+            }, $where);
         }
 
         if (empty($this->where))
@@ -399,17 +404,18 @@ class model
      * @param array $replacement 按照位置替换问号“？”
      * @return mixed
      */
-    public function query($sql, $replacement=array())
+    public function query($sql, $replacement = array())
     {
-    	if(!empty($replacement))
-    	{
-    		// 支持model->query("cid=? and name=?", [12, "name"])
-			$i = 0;
-			$sql = preg_replace_callback(["/(\?)/"], function() use (&$i, &$replacement) {
-				$v = $replacement[$i++];
-        		return is_numeric($v) ? $v : "'" . $this->escape_string($v) . "'";
-			}, $sql);
-    	}
+        if (!empty($replacement))
+        {
+            // 支持model->query("cid=? and name=?", [12, "name"])
+            $i   = 0;
+            $sql = preg_replace_callback(["/(\?)/"], function () use (&$i, &$replacement)
+            {
+                $v = $replacement[$i++];
+                return !is_string($v) ? $v : "'" . $this->escape_string($v) . "'";
+            }, $sql);
+        }
 
         // 鉴定是执行查询还是commit提交操作。如果是select、show，可以有后续操作。
         $_key = strtolower(substr($sql, 0, 4));
@@ -615,19 +621,18 @@ class model
         $_set_string = ' SET ';
         $tmp         = array();
 
-        if( is_array($this->data) )
+        if (is_array($this->data))
         {
-	        foreach ($this->data as $k => $v)
-	        {
-	            $tmp[] = $k . '=' . $v;
-	        }
-        	$_set_string .= implode(',', $tmp);
+            foreach ($this->data as $k => $v)
+            {
+                $tmp[] = $k . '=' . $v;
+            }
+            $_set_string .= implode(',', $tmp);
         }
         else if (is_string($this->data))
         {
-        	$_set_string .= $this->data;
+            $_set_string .= $this->data;
         }
-
 
         if ($this->where)
         {
@@ -690,11 +695,11 @@ class model
      */
     protected function _insert($type, $update_string = '')
     {
-    	if(is_string($this->data))
-    	{
-    		throw new ephpException('错误：执行model::insert()时model::set/data()参数必须是array类型');
-    		return false;
-    	}
+        if (is_string($this->data))
+        {
+            throw new ephpException('错误：执行model::insert()时model::set/data()参数必须是array类型');
+            return false;
+        }
         $_table_name = $this->_get_table_name();
         $_fields     = implode(',', array_keys($this->data));
         $_values     = implode(',', array_values($this->data));
